@@ -338,33 +338,18 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
     while (1) {
         position = NSMaxRange(allRange);
         
-        __block NSRange precedingRange;
-        __block NSRange urlRange;
-        __block NSRange protocolRange;
-        __block NSRange domainRange;
-        __block NSRange pathRange;
+        NSRange searchRange = NSMakeRange(position, len - position);
+        allRange = [text rangeOfRegex:TWUValidURL options:RKLCaseless inRange:searchRange capture:0L error:NULL];
         
-        __block BOOL success = NO;
-        [text enumerateStringsMatchedByRegex:TWUValidURL
-                                     options:RKLCaseless
-                                     inRange:NSMakeRange(position, len - position)
-                                       error:NULL
-                          enumerationOptions:RKLRegexEnumerationCapturedStringsNotRequired
-                                  usingBlock:^(NSInteger captureCount, NSString *const *capturedStrings, const NSRange *capturedRanges, volatile BOOL *const stop) {
-                                      if ((success = captureCount >= 9)) {
-                                          allRange = capturedRanges[0];
-                                          precedingRange = capturedRanges[2];
-                                          urlRange = capturedRanges[3];
-                                          protocolRange = capturedRanges[4];
-                                          domainRange = capturedRanges[5];
-                                          pathRange = capturedRanges[7];
-                                      }
-                                      *stop = YES;
-                                  }];
-        
-        if (!success) {
+        if (allRange.location == NSNotFound) {
             break;
         }
+        
+        NSRange precedingRange = [text rangeOfRegex:TWUValidURL options:RKLCaseless inRange:searchRange capture:2L error:NULL];
+        NSRange urlRange = [text rangeOfRegex:TWUValidURL options:RKLCaseless inRange:searchRange capture:3L error:NULL];
+        NSRange protocolRange = [text rangeOfRegex:TWUValidURL options:RKLCaseless inRange:searchRange capture:4L error:NULL];
+        NSRange domainRange = [text rangeOfRegex:TWUValidURL options:RKLCaseless inRange:searchRange capture:5L error:NULL];
+        NSRange pathRange = [text rangeOfRegex:TWUValidURL options:RKLCaseless inRange:searchRange capture:7L error:NULL];
         
         // If protocol is missing and domain contains non-ASCII characters,
         // extract ASCII-only domains.
@@ -464,26 +449,14 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
     NSInteger position = 0;
     
     while (1) {
-        __block NSRange fullRange;
-        __block NSRange hashtagRange;
-        __block BOOL success = NO;
+        NSRange searchRange = NSMakeRange(position, len - position);
+        NSRange allRange = [text rangeOfRegex:TWUValidHashtag options:RKLCaseless inRange:searchRange capture:0L error:NULL];
         
-        [text enumerateStringsMatchedByRegex:TWUValidHashtag
-                                     options:RKLCaseless
-                                     inRange:NSMakeRange(position, len - position)
-                                       error:NULL
-                          enumerationOptions:RKLRegexEnumerationCapturedStringsNotRequired
-                                  usingBlock:^(NSInteger captureCount, NSString *const *capturedStrings, const NSRange *capturedRanges, volatile BOOL *const stop) {
-                                      if ((success = captureCount >= 2)) {
-                                          fullRange = capturedRanges[0];
-                                          hashtagRange = capturedRanges[1];
-                                      }
-                                      *stop = YES;
-                                  }];
-        
-        if (!success) {
+        if (allRange.location == NSNotFound) {
             break;
         }
+        
+        NSRange hashtagRange = [text rangeOfRegex:TWUValidHashtag options:RKLCaseless inRange:searchRange capture:1L error:NULL];
         
         BOOL matchOk = YES;
         
@@ -514,7 +487,7 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
             }
         }
         
-        position = NSMaxRange(fullRange);
+        position = NSMaxRange(allRange);
     }
     
     return results;
@@ -549,30 +522,16 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
     NSInteger position = 0;
 
     while (1) {
-        __block NSRange allRange;
-        __block NSRange atSignRange;
-        __block NSRange screenNameRange;
-        __block NSRange listNameRange;
-        __block BOOL success = NO;
+        NSRange searchRange = NSMakeRange(position, len - position);
+        NSRange allRange = [text rangeOfRegex:TWUValidMentionOrList options:RKLCaseless inRange:searchRange capture:0L error:NULL];
         
-        [text enumerateStringsMatchedByRegex:TWUValidMentionOrList
-                                     options:RKLCaseless
-                                     inRange:NSMakeRange(position, len - position)
-                                       error:NULL
-                          enumerationOptions:RKLRegexEnumerationCapturedStringsNotRequired
-                                  usingBlock:^(NSInteger captureCount, NSString *const *capturedStrings, const NSRange *capturedRanges, volatile BOOL *const stop) {
-                                      if ((success = captureCount >= 5)) {
-                                          allRange = capturedRanges[0];
-                                          atSignRange = capturedRanges[2];
-                                          screenNameRange = capturedRanges[3];
-                                          listNameRange = capturedRanges[4];
-                                      }
-                                      *stop = YES;
-                                  }];
-        
-        if (!success) {
+        if (allRange.location == NSNotFound) {
             break;
         }
+        
+        NSRange atSignRange = [text rangeOfRegex:TWUValidMentionOrList options:RKLCaseless inRange:searchRange capture:2L error:NULL];
+        NSRange screenNameRange = [text rangeOfRegex:TWUValidMentionOrList options:RKLCaseless inRange:searchRange capture:3L error:NULL];
+        NSRange listNameRange = [text rangeOfRegex:TWUValidMentionOrList options:RKLCaseless inRange:searchRange capture:4L error:NULL];
         
         NSInteger end = NSMaxRange(allRange);
         
@@ -608,20 +567,8 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
 
     NSInteger len = text.length;
     
-    __block NSRange replyRange;
-    __block BOOL success = NO;
-    [text enumerateStringsMatchedByRegex:TWUValidReply
-                                 options:RKLCaseless
-                                 inRange:NSMakeRange(0, len)
-                                   error:NULL
-                      enumerationOptions:RKLRegexEnumerationCapturedStringsNotRequired
-                              usingBlock:^(NSInteger captureCount, NSString *const *capturedStrings, const NSRange *capturedRanges, volatile BOOL *const stop) {
-                                  if ((success = captureCount >= 2)) {
-                                      replyRange = capturedRanges[1];
-                                  }
-                                  *stop = YES;
-                              }];
-    if (!success) {
+    NSRange replyRange = [text rangeOfRegex:TWUValidReply options:RKLCaseless inRange:NSMakeRange(0, len) capture:1L error:NULL];
+    if (replyRange.location == NSNotFound) {
         return nil;
     }
 
