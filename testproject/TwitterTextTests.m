@@ -237,6 +237,9 @@
     for (NSDictionary *testCase in hashtags) {
         NSString *text = [testCase objectForKey:@"text"];
         NSArray *expected = [testCase objectForKey:@"expected"];
+        if ([expected count] == 4) {
+            NSLog(@"ed");
+        }
         
         NSArray *results = [TwitterText hashtagsInText:text checkingURLOverlap:YES];
         if (results.count == expected.count) {

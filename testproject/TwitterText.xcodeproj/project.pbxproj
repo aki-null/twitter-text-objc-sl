@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		61D311BC1558FE670034D666 /* RegexKitLite.m in Sources */ = {isa = PBXBuildFile; fileRef = 61D311BB1558FE670034D666 /* RegexKitLite.m */; };
+		61022D09155A495500DC2927 /* CocoaRegex.m in Sources */ = {isa = PBXBuildFile; fileRef = 61022D08155A495500DC2927 /* CocoaRegex.m */; };
 		741433721540BAD100FC29AD /* SenTestingKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 741433711540BAD100FC29AD /* SenTestingKit.framework */; };
 		741433731540BAD100FC29AD /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7414335F1540BAD100FC29AD /* Cocoa.framework */; };
 		745569971541CDB1004DE54E /* TwitterText.m in Sources */ = {isa = PBXBuildFile; fileRef = 745569941541CDB1004DE54E /* TwitterText.m */; };
@@ -16,8 +16,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		61D311BA1558FE670034D666 /* RegexKitLite.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RegexKitLite.h; sourceTree = "<group>"; };
-		61D311BB1558FE670034D666 /* RegexKitLite.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = RegexKitLite.m; sourceTree = "<group>"; };
+		61022D07155A495500DC2927 /* CocoaRegex.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CocoaRegex.h; sourceTree = "<group>"; };
+		61022D08155A495500DC2927 /* CocoaRegex.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CocoaRegex.m; sourceTree = "<group>"; };
 		7414335F1540BAD100FC29AD /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		741433621540BAD100FC29AD /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		741433641540BAD100FC29AD /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
@@ -90,8 +90,8 @@
 		745569921541CDB1004DE54E /* lib */ = {
 			isa = PBXGroup;
 			children = (
-				61D311BA1558FE670034D666 /* RegexKitLite.h */,
-				61D311BB1558FE670034D666 /* RegexKitLite.m */,
+				61022D07155A495500DC2927 /* CocoaRegex.h */,
+				61022D08155A495500DC2927 /* CocoaRegex.m */,
 				745569931541CDB1004DE54E /* TwitterText.h */,
 				745569941541CDB1004DE54E /* TwitterText.m */,
 				745569951541CDB1004DE54E /* TwitterTextEntity.h */,
@@ -182,7 +182,7 @@
 				745569971541CDB1004DE54E /* TwitterText.m in Sources */,
 				745569981541CDB1004DE54E /* TwitterTextEntity.m in Sources */,
 				7455699D1541CDCA004DE54E /* TwitterTextTests.m in Sources */,
-				61D311BC1558FE670034D666 /* RegexKitLite.m in Sources */,
+				61022D09155A495500DC2927 /* CocoaRegex.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

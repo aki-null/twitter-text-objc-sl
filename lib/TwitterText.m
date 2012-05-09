@@ -11,7 +11,7 @@
 //
 
 #import "TwitterText.h"
-#import "RegexKitLite.h"
+#import "CocoaRegex.h"
 
 //
 // These regular expressions are ported from twitter-text-rb on Apr 24 2012.
@@ -277,7 +277,16 @@ static const int MaxTweetLength = 140;
 static const int HTTPShortURLLength = 14;
 static const int HTTPSShortURLLength = 15;
 
+static CocoaRegex *validURLRegexp;
 static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
+static CocoaRegex *validASCIIDomainRegexp;
+static CocoaRegex *invalidShortDomainRegexp;
+static CocoaRegex *validTCOURLRegexp;
+static CocoaRegex *validHashtagRegexp;
+static CocoaRegex *endHashtagRegexp;
+static CocoaRegex *validMentionOrListRegexp;
+static CocoaRegex *validReplyRegexp;
+static CocoaRegex *endMentionRegexp;
 
 @interface TwitterText ()
 + (NSArray*)hashtagsInText:(NSString*)text withURLEntities:(NSArray*)urlEntities;
@@ -327,6 +336,9 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
         return [NSArray array];
     }
     
+    if (!validURLRegexp) {
+        validURLRegexp = [[CocoaRegex alloc] initWithPattern:TWUValidURL options:CocoaRegexCaseInsensitive];
+    }
     if (!invalidURLWithoutProtocolPrecedingCharSet) {
         invalidURLWithoutProtocolPrecedingCharSet = [NSCharacterSet characterSetWithCharactersInString:@"-_./"];
 #if !__has_feature(objc_arc)
@@ -334,6 +346,16 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
 #endif
     }
 
+    if (!validASCIIDomainRegexp) {
+        validASCIIDomainRegexp = [[CocoaRegex alloc] initWithPattern:TWUValidASCIIDomain options:CocoaRegexCaseInsensitive];
+    }
+    if (!invalidShortDomainRegexp) {
+        invalidShortDomainRegexp = [[CocoaRegex alloc] initWithPattern:TWUInvalidShortDomain options:CocoaRegexCaseInsensitive];
+    }
+    if (!validTCOURLRegexp) {
+        validTCOURLRegexp = [[CocoaRegex alloc] initWithPattern:TWUValidTCOURL options:CocoaRegexCaseInsensitive];
+    }
+    
     NSMutableArray *results = [NSMutableArray array];
     NSInteger len = text.length;
     NSInteger position = 0;
@@ -341,19 +363,24 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
 
     while (1) {
         position = NSMaxRange(allRange);
-        
-        NSRange searchRange = NSMakeRange(position, len - position);
-        allRange = [text rangeOfRegex:TWUValidURL options:RKLCaseless inRange:searchRange capture:0L error:NULL];
-        
-        if (allRange.location == NSNotFound) {
+        CocoaRegex *validURLRegexpLocal = [validURLRegexp copy];
+        allRange = [validURLRegexpLocal rangeOfFirstMatchInString:text start:position end:len - 1];
+        if (allRange.location == NSNotFound || [validURLRegexpLocal numberOfMatchingRanges] < 8) {
+#if !__has_feature(objc_arc)
+            [validURLRegexpLocal release];
+#endif
             break;
         }
         
-        NSRange precedingRange = [text rangeOfRegex:TWUValidURL options:RKLCaseless inRange:searchRange capture:2L error:NULL];
-        NSRange urlRange = [text rangeOfRegex:TWUValidURL options:RKLCaseless inRange:searchRange capture:3L error:NULL];
-        NSRange protocolRange = [text rangeOfRegex:TWUValidURL options:RKLCaseless inRange:searchRange capture:4L error:NULL];
-        NSRange domainRange = [text rangeOfRegex:TWUValidURL options:RKLCaseless inRange:searchRange capture:5L error:NULL];
-        NSRange pathRange = [text rangeOfRegex:TWUValidURL options:RKLCaseless inRange:searchRange capture:7L error:NULL];
+        NSRange precedingRange = [validURLRegexpLocal matchingRangeAt:2];
+        NSRange urlRange = [validURLRegexpLocal matchingRangeAt:3];
+        NSRange protocolRange = [validURLRegexpLocal matchingRangeAt:4];
+        NSRange domainRange = [validURLRegexpLocal matchingRangeAt:5];
+        NSRange pathRange = [validURLRegexpLocal matchingRangeAt:7];
+        
+#if !__has_feature(objc_arc)
+        [validURLRegexpLocal release];
+#endif
         
         // If protocol is missing and domain contains non-ASCII characters,
         // extract ASCII-only domains.
@@ -372,24 +399,23 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
             BOOL lastInvalidShortResult = NO;
             
             while (domainStart < domainEnd) {
-                NSRange asciiResult = [text rangeOfRegex:TWUValidASCIIDomain
-                                                 options:RKLCaseless
-                                                 inRange:NSMakeRange(domainStart, domainEnd - domainStart)
-                                                 capture:0
-                                                   error:NULL];
-                if (asciiResult.location == NSNotFound) {
+                CocoaRegex *validASCIIDomainRegexpLocal = [validASCIIDomainRegexp copy];
+                NSRange urlRangeTemp = [validASCIIDomainRegexpLocal rangeOfFirstMatchInString:text start:domainStart end:domainEnd - 1];
+#if !__has_feature(objc_arc)
+                [validASCIIDomainRegexpLocal release];
+#endif
+                if (urlRangeTemp.location == NSNotFound) {
                     break;
                 }
                 
-                urlRange = asciiResult;
+                urlRange = urlRangeTemp;
                 lastEntity = [TwitterTextEntity entityWithType:TwitterTextEntityURL range:urlRange];
-
-                NSRange invalidShortResult = [text rangeOfRegex:TWUInvalidShortDomain
-                                                        options:RKLCaseless
-                                                        inRange:urlRange
-                                                        capture:0
-                                                          error:NULL];
-                lastInvalidShortResult = (invalidShortResult.location != NSNotFound);
+                
+                CocoaRegex *invalidShortDomainRegexpLocal = [invalidShortDomainRegexp copy];
+                lastInvalidShortResult = [invalidShortDomainRegexpLocal matchesInString:text start:urlRange.location end:NSMaxRange(urlRange) - 1];
+#if !__has_feature(objc_arc)
+                [invalidShortDomainRegexpLocal release];
+#endif
                 if (!lastInvalidShortResult) {
                     [results addObject:lastEntity];
                 }
@@ -412,11 +438,11 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
             
         } else {
             // In the case of t.co URLs, don't allow additional path characters
-            NSRange tcoRange = [text rangeOfRegex:TWUValidTCOURL
-                                          options:RKLCaseless
-                                          inRange:urlRange
-                                          capture:0
-                                            error:NULL];
+            CocoaRegex *validTCOURLRegexpLocal = [validTCOURLRegexp copy];
+            NSRange tcoRange = [validTCOURLRegexpLocal rangeOfFirstMatchInString:text start:urlRange.location end:NSMaxRange(urlRange) - 1];
+#if !__has_feature(objc_arc)
+            [validTCOURLRegexpLocal release];
+#endif
             if (tcoRange.location != NSNotFound) {
                 urlRange.length = tcoRange.length;
             }
@@ -434,7 +460,7 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
     if (!text.length) {
         return [NSArray array];
     }
-
+    
     NSArray *urls = nil;
     if (checkingURLOverlap) {
         urls = [self URLsInText:text];
@@ -448,20 +474,31 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
         return [NSArray array];
     }
     
+    if (!validHashtagRegexp) {
+        validHashtagRegexp = [[CocoaRegex alloc] initWithPattern:TWUValidHashtag options:CocoaRegexCaseInsensitive];
+    }
+    if (!endHashtagRegexp) {
+        endHashtagRegexp = [[CocoaRegex alloc] initWithPattern:TWUEndHashTagMatch options:CocoaRegexCaseInsensitive];
+    }
+    
     NSMutableArray *results = [NSMutableArray array];
     NSInteger len = text.length;
     NSInteger position = 0;
     
     while (1) {
-        NSRange searchRange = NSMakeRange(position, len - position);
-        NSRange allRange = [text rangeOfRegex:TWUValidHashtag options:RKLCaseless inRange:searchRange capture:0L error:NULL];
-        
-        if (allRange.location == NSNotFound) {
+        CocoaRegex *validHashtagRegexpLocal = [validHashtagRegexp copy];
+        NSRange allRange = [validHashtagRegexpLocal rangeOfFirstMatchInString:text start:position end:len - 1];
+        if (allRange.location == NSNotFound || [validHashtagRegexpLocal numberOfMatchingRanges] < 1) {
+#if !__has_feature(objc_arc)
+            [validHashtagRegexpLocal release];
+#endif
             break;
         }
         
-        NSRange hashtagRange = [text rangeOfRegex:TWUValidHashtag options:RKLCaseless inRange:searchRange capture:1L error:NULL];
-        
+        NSRange hashtagRange = [validHashtagRegexpLocal matchingRangeAt:1];
+#if !__has_feature(objc_arc)
+        [validHashtagRegexpLocal release];
+#endif
         BOOL matchOk = YES;
         
         // Check URL overlap
@@ -475,11 +512,11 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
         if (matchOk) {
             NSInteger afterStart = NSMaxRange(hashtagRange);
             if (afterStart < len) {
-                NSRange endMatchRange = [text rangeOfRegex:TWUEndHashTagMatch
-                                                   options:RKLCaseless
-                                                   inRange:NSMakeRange(afterStart, len - afterStart)
-                                                   capture:0
-                                                     error:NULL];
+                CocoaRegex *endHashtagRegexpLocal = [endHashtagRegexp copy];
+                NSRange endMatchRange = [endHashtagRegexpLocal rangeOfFirstMatchInString:text start:afterStart end:len - 1];
+#if !__has_feature(objc_arc)
+                [endHashtagRegexpLocal release];
+#endif
                 if (endMatchRange.location != NSNotFound) {
                     matchOk = NO;
                 }
@@ -502,7 +539,7 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
     if (!text.length) {
         return [NSArray array];
     }
-
+    
     NSArray *mentionsOrLists = [self mentionsOrListsInText:text];
     NSMutableArray *results = [NSMutableArray array];
     
@@ -521,30 +558,40 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
         return [NSArray array];
     }
     
+    if (!validMentionOrListRegexp) {
+        validMentionOrListRegexp = [[CocoaRegex alloc] initWithPattern:TWUValidMentionOrList options:CocoaRegexCaseInsensitive];
+    }
+    if (!endMentionRegexp) {
+        endMentionRegexp = [[CocoaRegex alloc] initWithPattern:TWUEndMentionMatch options:CocoaRegexCaseInsensitive];
+    }
+    
     NSMutableArray *results = [NSMutableArray array];
     NSInteger len = text.length;
     NSInteger position = 0;
-
+    
     while (1) {
-        NSRange searchRange = NSMakeRange(position, len - position);
-        NSRange allRange = [text rangeOfRegex:TWUValidMentionOrList options:RKLCaseless inRange:searchRange capture:0L error:NULL];
-        
-        if (allRange.location == NSNotFound) {
+        CocoaRegex *validMentionOrListRegexpLocal = [validMentionOrListRegexp copy];
+        NSRange tempAllRange = [validMentionOrListRegexpLocal rangeOfFirstMatchInString:text start:position end:len - 1];
+        if (tempAllRange.location == NSNotFound || [validMentionOrListRegexpLocal numberOfMatchingRanges] < 3) {
+#if !__has_feature(objc_arc)
+            [validMentionOrListRegexpLocal release];
+#endif
             break;
         }
         
-        NSRange atSignRange = [text rangeOfRegex:TWUValidMentionOrList options:RKLCaseless inRange:searchRange capture:2L error:NULL];
-        NSRange screenNameRange = [text rangeOfRegex:TWUValidMentionOrList options:RKLCaseless inRange:searchRange capture:3L error:NULL];
-        NSRange listNameRange = [text rangeOfRegex:TWUValidMentionOrList options:RKLCaseless inRange:searchRange capture:4L error:NULL];
-        
+        NSRange allRange = tempAllRange;
         NSInteger end = NSMaxRange(allRange);
         
-        NSRange endMentionRange = [text rangeOfRegex:TWUEndMentionMatch
-                                             options:RKLCaseless
-                                             inRange:NSMakeRange(end, len - end)
-                                             capture:0
-                                               error:NULL];
-        if (endMentionRange.location == NSNotFound) {
+        CocoaRegex *endMentionRegexpLocal = [endMentionRegexp copy];
+        BOOL endMentionFound = [endMentionRegexpLocal matchesInString:text start:end end:len - 1];
+#if !__has_feature(objc_arc)
+        [endMentionRegexpLocal release];
+#endif
+        if (!endMentionFound) {
+            NSRange atSignRange = [validMentionOrListRegexpLocal matchingRangeAt:2];
+            NSRange screenNameRange = [validMentionOrListRegexpLocal matchingRangeAt:3];
+            NSRange listNameRange = [validMentionOrListRegexpLocal matchingRangeAt:4];
+            
             if (listNameRange.location == NSNotFound) {
                 TwitterTextEntity *entity = [TwitterTextEntity entityWithType:TwitterTextEntityScreenName range:NSMakeRange(atSignRange.location, NSMaxRange(screenNameRange) - atSignRange.location)];
                 [results addObject:entity];
@@ -557,6 +604,10 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
             end++;
         }
         
+#if !__has_feature(objc_arc)
+        [validMentionOrListRegexpLocal release];
+#endif
+        
         position = end;
     }
     
@@ -568,22 +619,37 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
     if (!text.length) {
         return nil;
     }
-
+    
+    if (!validReplyRegexp) {
+        validReplyRegexp = [[CocoaRegex alloc] initWithPattern:TWUValidReply options:CocoaRegexCaseInsensitive];
+    }
+    if (!endMentionRegexp) {
+        endMentionRegexp = [[CocoaRegex alloc] initWithPattern:TWUEndMentionMatch options:CocoaRegexCaseInsensitive];
+    }
+    
     NSInteger len = text.length;
     
-    NSRange replyRange = [text rangeOfRegex:TWUValidReply options:RKLCaseless inRange:NSMakeRange(0, len) capture:1L error:NULL];
-    if (replyRange.location == NSNotFound) {
+    CocoaRegex *validReplyRegexpLocal = [validReplyRegexp copy];
+    BOOL matched = [validReplyRegexpLocal matchesInString:text];
+    if (!matched || [validReplyRegexpLocal numberOfMatchingRanges] < 1) {
+#if !__has_feature(objc_arc)
+        [validReplyRegexpLocal release];
+#endif
         return nil;
     }
-
+    
+    NSRange replyRange = [validReplyRegexpLocal matchingRangeAt:1];
+#if !__has_feature(objc_arc)
+    [validReplyRegexpLocal release];
+#endif
     NSInteger replyEnd = NSMaxRange(replyRange);
     
-    NSRange endMentionRange = [text rangeOfRegex:TWUEndMentionMatch
-                                         options:RKLCaseless
-                                         inRange:NSMakeRange(replyEnd, len - replyEnd)
-                                         capture:0
-                                           error:NULL];
-    if (endMentionRange.location != NSNotFound) {
+    CocoaRegex *endMentionRegexpLocal = [endMentionRegexp copy];
+    BOOL endMentionFound = [endMentionRegexpLocal matchesInString:text start:replyEnd end:len - 1];
+#if !__has_feature(objc_arc)
+    [endMentionRegexpLocal release];
+#endif
+    if (endMentionFound) {
         return nil;
     }
     

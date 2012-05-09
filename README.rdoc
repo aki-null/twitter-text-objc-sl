@@ -4,7 +4,7 @@ Objective-C port of the twitter-text handling libraries.
 
 This is a fork of twitter-text-objc, which has been modified to not use NSRegularExpression for OS backwards compatibility.
 
-Unlike the original library, this library supports OS X 10.6+, but does not work in ARC environment. You will need to add `-licucore` in the `Other Linker Flags` build setting to link the ICU library.
+You will need to add +-licucore+ in the +Other Linker Flags+ build setting to link the ICU library.
 
 == Set up Xcode
 
@@ -46,4 +46,4 @@ Licensed under the Apache License, Version 2.0: http://www.apache.org/licenses/L
 
 == Credits
 
-RegexKitLite, Copyright © 2008-2010, John Engelhart: http://regexkit.sourceforge.net/RegexKitLite/
+CocoaRegex, Copyright (c) 2012 Satoshi Nakagawa: https://github.com/psychs/cocoaregex
