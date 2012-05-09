@@ -43,3 +43,7 @@ https://github.com/twitter/twitter-text-objc-sl/issues
 Copyright 2012 Twitter, Inc.
 
 Licensed under the Apache License, Version 2.0: http://www.apache.org/licenses/LICENSE-2.0
+
+== Credits
+
+RegexKitLite, Copyright © 2008-2010, John Engelhart: http://regexkit.sourceforge.net/RegexKitLite/
