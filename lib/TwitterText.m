@@ -654,7 +654,7 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
     }
     
     int len = string.length;
-    int charCount = len;
+    int charCount = len + urlLengthOffset;
     
     if (len > 0) {
         // Adjust count for non-BMP characters
@@ -674,8 +674,6 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
             }
         }
     }
-    
-    charCount += urlLengthOffset;
 
     return MaxTweetLength - charCount;
 }
