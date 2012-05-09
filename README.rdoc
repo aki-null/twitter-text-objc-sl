@@ -1,8 +1,10 @@
-== twitter-text-objc
+== twitter-text-objc-sl
 
 Objective-C port of the twitter-text handling libraries.
 
-This library supports OS X 10.7+ and iOS 4+, both ARC and non-ARC environments.
+This is a fork of twitter-text-objc, which has been modified to not use NSRegularExpression for OS backwards compatibility.
+
+Unlike the original library, this library supports OS X 10.6+, but does not work in ARC environment.
 
 == Set up Xcode
 
@@ -26,7 +28,7 @@ Once you ran rake, you can run the tests in Xcode. Open testproject/TwitterText.
 
 Have a bug? Please create an issue here on GitHub!
 
-https://github.com/twitter/twitter-text-objc/issues
+https://github.com/twitter/twitter-text-objc-sl/issues
 
 == To Do
 
