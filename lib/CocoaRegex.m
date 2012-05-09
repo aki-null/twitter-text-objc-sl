@@ -174,8 +174,8 @@ const char* u_errorName(UErrorCode status);
 
 - (NSUInteger)numberOfMatchingRanges
 {
-	UErrorCode status = 0;
-	return uregex_groupCount(regex, &status);
+    UErrorCode status = 0;
+    return uregex_groupCount(regex, &status);
 }
 
 - (NSRange)matchingRangeAt:(NSUInteger)index
