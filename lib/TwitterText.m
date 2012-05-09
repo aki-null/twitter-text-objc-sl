@@ -273,15 +273,19 @@
     @")" \
 @")"
 
+static const int MaxTweetLength = 140;
+static const int HTTPShortURLLength = 14;
+static const int HTTPSShortURLLength = 15;
+
 static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
 
 @interface TwitterText ()
-+ (NSArray*)extractHashtags:(NSString*)text withURLEntities:(NSArray*)urlEntities;
++ (NSArray*)hashtagsInText:(NSString*)text withURLEntities:(NSArray*)urlEntities;
 @end
 
 @implementation TwitterText
 
-+ (NSArray*)extractEntities:(NSString*)text
++ (NSArray*)entitiesInText:(NSString*)text
 {
     if (!text.length) {
         return [NSArray array];
@@ -289,12 +293,12 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
 
     NSMutableArray *results = [NSMutableArray array];
     
-    NSArray *urls = [self extractURLs:text];
-    NSArray *hashtags = [self extractHashtags:text withURLEntities:urls];
+    NSArray *urls = [self URLsInText:text];
+    NSArray *hashtags = [self hashtagsInText:text withURLEntities:urls];
     [results addObjectsFromArray:urls];
     [results addObjectsFromArray:hashtags];
     
-    NSArray *mentionsAndLists = [self extractMentionsOrLists:text];
+    NSArray *mentionsAndLists = [self mentionsOrListsInText:text];
     NSMutableArray *addingItems = [NSMutableArray array];
     
     for (TwitterTextEntity *entity in mentionsAndLists) {
@@ -317,7 +321,7 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
     return results;
 }
 
-+ (NSArray*)extractURLs:(NSString*)text
++ (NSArray*)URLsInText:(NSString*)text
 {
     if (!text.length) {
         return [NSArray array];
@@ -333,7 +337,7 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
     NSMutableArray *results = [NSMutableArray array];
     NSInteger len = text.length;
     NSInteger position = 0;
-    __block NSRange allRange = NSMakeRange(0, 0);
+    NSRange allRange = NSMakeRange(0, 0);
 
     while (1) {
         position = NSMaxRange(allRange);
@@ -425,7 +429,7 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
     return results;
 }
 
-+ (NSArray*)extractHashtags:(NSString*)text checkingURLOverlap:(BOOL)checkingURLOverlap
++ (NSArray*)hashtagsInText:(NSString*)text checkingURLOverlap:(BOOL)checkingURLOverlap
 {
     if (!text.length) {
         return [NSArray array];
@@ -433,12 +437,12 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
 
     NSArray *urls = nil;
     if (checkingURLOverlap) {
-        urls = [self extractURLs:text];
+        urls = [self URLsInText:text];
     }
-    return [self extractHashtags:text withURLEntities:urls];
+    return [self hashtagsInText:text withURLEntities:urls];
 }
 
-+ (NSArray*)extractHashtags:(NSString*)text withURLEntities:(NSArray*)urlEntities
++ (NSArray*)hashtagsInText:(NSString*)text withURLEntities:(NSArray*)urlEntities
 {
     if (!text.length) {
         return [NSArray array];
@@ -493,13 +497,13 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
     return results;
 }
 
-+ (NSArray*)extractMentionedScreenNames:(NSString*)text
++ (NSArray*)mentionedScreenNamesInText:(NSString*)text
 {
     if (!text.length) {
         return [NSArray array];
     }
 
-    NSArray *mentionsOrLists = [self extractMentionsOrLists:text];
+    NSArray *mentionsOrLists = [self mentionsOrListsInText:text];
     NSMutableArray *results = [NSMutableArray array];
     
     for (TwitterTextEntity *entity in mentionsOrLists) {
@@ -511,7 +515,7 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
     return results;
 }
 
-+ (NSArray*)extractMentionsOrLists:(NSString*)text
++ (NSArray*)mentionsOrListsInText:(NSString*)text
 {
     if (!text.length) {
         return [NSArray array];
@@ -559,7 +563,7 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
     return results;
 }
 
-+ (TwitterTextEntity*)extractReplyScreenName:(NSString*)text
++ (TwitterTextEntity*)repliedScreenNameInText:(NSString*)text
 {
     if (!text.length) {
         return nil;
@@ -588,11 +592,14 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
 
 + (int)tweetLength:(NSString*)text
 {
+    text = [text precomposedStringWithCanonicalMapping];
+    
     int len = text.length;
     if (!len) {
         return 0;
     }
     
+    // Adjust count for non-BMP characters
     UniChar buffer[len];
     [text getCharacters:buffer];
     int charCount = len;
@@ -609,8 +616,68 @@ static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
             }
         }
     }
-    
+
     return charCount;
+}
+
++ (int)remainingCharacterCount:(NSString*)text
+{
+    return [self remainingCharacterCount:text httpURLLength:HTTPShortURLLength httpsURLLength:HTTPSShortURLLength];
+}
+
++ (int)remainingCharacterCount:(NSString*)text httpURLLength:(int)httpURLLength httpsURLLength:(int)httpsURLLength
+{
+    text = [text precomposedStringWithCanonicalMapping];
+    
+    if (!text.length) {
+        return MaxTweetLength;
+    }
+    
+    // Remove URLs from text and add t.co length
+    NSMutableString *string = [text mutableCopy];
+#if !__has_feature(objc_arc)
+    [string autorelease];
+#endif
+    
+    int urlLengthOffset = 0;
+    NSArray *urlEntities = [self URLsInText:text];
+    for (int i=urlEntities.count-1; i>=0; i--) {
+        TwitterTextEntity *entity = [urlEntities objectAtIndex:i];
+        NSRange urlRange = entity.range;
+        NSString *url = [string substringWithRange:urlRange];
+        if ([url rangeOfString:@"https" options:NSCaseInsensitiveSearch | NSAnchoredSearch].location == 0) {
+            urlLengthOffset += httpsURLLength;
+        } else {
+            urlLengthOffset += httpURLLength;
+        }
+        [string deleteCharactersInRange:urlRange];
+    }
+    
+    int len = string.length;
+    int charCount = len;
+    
+    if (len > 0) {
+        // Adjust count for non-BMP characters
+        UniChar buffer[len];
+        [string getCharacters:buffer];
+        
+        for (int i=0; i<len; i++) {
+            UniChar c = buffer[i];
+            if (CFStringIsSurrogateHighCharacter(c)) {
+                if (i+1 < len) {
+                    UniChar d = buffer[i+1];
+                    if (CFStringIsSurrogateLowCharacter(d)) {
+                        charCount--;
+                        i++;
+                    }
+                }
+            }
+        }
+    }
+    
+    charCount += urlLengthOffset;
+
+    return MaxTweetLength - charCount;
 }
 
 @end
