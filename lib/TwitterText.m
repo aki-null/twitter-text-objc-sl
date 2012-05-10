@@ -364,7 +364,7 @@ static CocoaRegex *endMentionRegexp;
     while (1) {
         position = NSMaxRange(allRange);
         CocoaRegex *validURLRegexpLocal = [validURLRegexp copy];
-        allRange = [validURLRegexpLocal rangeOfFirstMatchInString:text start:position end:len - 1];
+        allRange = [validURLRegexpLocal rangeOfFirstMatchInString:text range:NSMakeRange(position, len - position)];
         if (allRange.location == NSNotFound || [validURLRegexpLocal numberOfMatchingRanges] < 8) {
 #if !__has_feature(objc_arc)
             [validURLRegexpLocal release];
@@ -400,7 +400,7 @@ static CocoaRegex *endMentionRegexp;
             
             while (domainStart < domainEnd) {
                 CocoaRegex *validASCIIDomainRegexpLocal = [validASCIIDomainRegexp copy];
-                NSRange urlRangeTemp = [validASCIIDomainRegexpLocal rangeOfFirstMatchInString:text start:domainStart end:domainEnd - 1];
+                NSRange urlRangeTemp = [validASCIIDomainRegexpLocal rangeOfFirstMatchInString:text range:NSMakeRange(domainStart, domainEnd - domainStart)];
 #if !__has_feature(objc_arc)
                 [validASCIIDomainRegexpLocal release];
 #endif
@@ -412,7 +412,7 @@ static CocoaRegex *endMentionRegexp;
                 lastEntity = [TwitterTextEntity entityWithType:TwitterTextEntityURL range:urlRange];
                 
                 CocoaRegex *invalidShortDomainRegexpLocal = [invalidShortDomainRegexp copy];
-                lastInvalidShortResult = [invalidShortDomainRegexpLocal matchesInString:text start:urlRange.location end:NSMaxRange(urlRange) - 1];
+                lastInvalidShortResult = [invalidShortDomainRegexpLocal matchesInString:text range:urlRange];
 #if !__has_feature(objc_arc)
                 [invalidShortDomainRegexpLocal release];
 #endif
@@ -439,7 +439,7 @@ static CocoaRegex *endMentionRegexp;
         } else {
             // In the case of t.co URLs, don't allow additional path characters
             CocoaRegex *validTCOURLRegexpLocal = [validTCOURLRegexp copy];
-            NSRange tcoRange = [validTCOURLRegexpLocal rangeOfFirstMatchInString:text start:urlRange.location end:NSMaxRange(urlRange) - 1];
+            NSRange tcoRange = [validTCOURLRegexpLocal rangeOfFirstMatchInString:text range:urlRange];
 #if !__has_feature(objc_arc)
             [validTCOURLRegexpLocal release];
 #endif
@@ -487,7 +487,7 @@ static CocoaRegex *endMentionRegexp;
     
     while (1) {
         CocoaRegex *validHashtagRegexpLocal = [validHashtagRegexp copy];
-        NSRange allRange = [validHashtagRegexpLocal rangeOfFirstMatchInString:text start:position end:len - 1];
+        NSRange allRange = [validHashtagRegexpLocal rangeOfFirstMatchInString:text range:NSMakeRange(position, len - position)];
         if (allRange.location == NSNotFound || [validHashtagRegexpLocal numberOfMatchingRanges] < 1) {
 #if !__has_feature(objc_arc)
             [validHashtagRegexpLocal release];
@@ -513,7 +513,7 @@ static CocoaRegex *endMentionRegexp;
             NSInteger afterStart = NSMaxRange(hashtagRange);
             if (afterStart < len) {
                 CocoaRegex *endHashtagRegexpLocal = [endHashtagRegexp copy];
-                NSRange endMatchRange = [endHashtagRegexpLocal rangeOfFirstMatchInString:text start:afterStart end:len - 1];
+                NSRange endMatchRange = [endHashtagRegexpLocal rangeOfFirstMatchInString:text range:NSMakeRange(afterStart, len - afterStart)];
 #if !__has_feature(objc_arc)
                 [endHashtagRegexpLocal release];
 #endif
@@ -571,7 +571,7 @@ static CocoaRegex *endMentionRegexp;
     
     while (1) {
         CocoaRegex *validMentionOrListRegexpLocal = [validMentionOrListRegexp copy];
-        NSRange tempAllRange = [validMentionOrListRegexpLocal rangeOfFirstMatchInString:text start:position end:len - 1];
+        NSRange tempAllRange = [validMentionOrListRegexpLocal rangeOfFirstMatchInString:text range:NSMakeRange(position, len - position)];
         if (tempAllRange.location == NSNotFound || [validMentionOrListRegexpLocal numberOfMatchingRanges] < 3) {
 #if !__has_feature(objc_arc)
             [validMentionOrListRegexpLocal release];
@@ -583,7 +583,7 @@ static CocoaRegex *endMentionRegexp;
         NSInteger end = NSMaxRange(allRange);
         
         CocoaRegex *endMentionRegexpLocal = [endMentionRegexp copy];
-        BOOL endMentionFound = [endMentionRegexpLocal matchesInString:text start:end end:len - 1];
+        BOOL endMentionFound = [endMentionRegexpLocal matchesInString:text range:NSMakeRange(end, len - end)];
 #if !__has_feature(objc_arc)
         [endMentionRegexpLocal release];
 #endif
@@ -645,7 +645,7 @@ static CocoaRegex *endMentionRegexp;
     NSInteger replyEnd = NSMaxRange(replyRange);
     
     CocoaRegex *endMentionRegexpLocal = [endMentionRegexp copy];
-    BOOL endMentionFound = [endMentionRegexpLocal matchesInString:text start:replyEnd end:len - 1];
+    BOOL endMentionFound = [endMentionRegexpLocal matchesInString:text range:NSMakeRange(replyEnd, len - replyEnd)];
 #if !__has_feature(objc_arc)
     [endMentionRegexpLocal release];
 #endif
