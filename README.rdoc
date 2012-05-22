@@ -32,7 +32,7 @@ https://github.com/twitter/twitter-text-objc-sl/issues
 
 == To Do
 
-* Cashtags support ($AAPL)
+* None
 
 == Authors
 

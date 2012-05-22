@@ -139,7 +139,7 @@
 @"]"
 
 #define TWUHashtagBoundary \
-@"\\A|\\z|[^&a-z0-9_" \
+@"^|$|[^&a-z0-9_" \
     TWULatinAccents \
     TWUNonLatinHashtagChars \
     TWUCJKHashtagCharacters \
@@ -149,6 +149,16 @@
     @"(?:" TWUHashtagBoundary @")([#＃]" TWUHashtagAlphanumeric @"*" TWHashtagAlpha TWUHashtagAlphanumeric @"*)"
 
 #define TWUEndHashTagMatch      @"\\A(?:[#＃]|://)"
+
+//
+// Cashtag
+//
+
+#define TWUCashtag          @"[a-z]{1,6}(?:[._][a-z]{1,2})?"
+#define TWUValidCashtag \
+    @"(?:^|[" TWUUnicodeSpaces @"])" \
+    @"(\\$" TWUCashtag @")" \
+    @"(?=$|\\s|[" TWUPunctuationChars @"])"
 
 //
 // Mention and list name
@@ -274,8 +284,8 @@
 @")"
 
 static const int MaxTweetLength = 140;
-static const int HTTPShortURLLength = 14;
-static const int HTTPSShortURLLength = 15;
+static const int HTTPShortURLLength = 20;
+static const int HTTPSShortURLLength = 21;
 
 static CocoaRegex *validURLRegexp;
 static NSCharacterSet *invalidURLWithoutProtocolPrecedingCharSet;
@@ -284,12 +294,14 @@ static CocoaRegex *invalidShortDomainRegexp;
 static CocoaRegex *validTCOURLRegexp;
 static CocoaRegex *validHashtagRegexp;
 static CocoaRegex *endHashtagRegexp;
+static CocoaRegex *validCashtagRegexp;
 static CocoaRegex *validMentionOrListRegexp;
 static CocoaRegex *validReplyRegexp;
 static CocoaRegex *endMentionRegexp;
 
 @interface TwitterText ()
 + (NSArray*)hashtagsInText:(NSString*)text withURLEntities:(NSArray*)urlEntities;
++ (NSArray*)cashtagsInText:(NSString*)text withURLEntities:(NSArray*)urlEntities;
 @end
 
 @implementation TwitterText
@@ -303,9 +315,13 @@ static CocoaRegex *endMentionRegexp;
     NSMutableArray *results = [NSMutableArray array];
     
     NSArray *urls = [self URLsInText:text];
-    NSArray *hashtags = [self hashtagsInText:text withURLEntities:urls];
     [results addObjectsFromArray:urls];
+    
+    NSArray *hashtags = [self hashtagsInText:text withURLEntities:urls];
     [results addObjectsFromArray:hashtags];
+    
+    NSArray *cashtags = [self cashtagsInText:text withURLEntities:urls];
+    [results addObjectsFromArray:cashtags];
     
     NSArray *mentionsAndLists = [self mentionsOrListsInText:text];
     NSMutableArray *addingItems = [NSMutableArray array];
@@ -534,6 +550,68 @@ static CocoaRegex *endMentionRegexp;
     return results;
 }
 
++ (NSArray*)cashtagsInText:(NSString*)text checkingURLOverlap:(BOOL)checkingURLOverlap
+{
+    if (!text.length) {
+        return [NSArray array];
+    }
+    
+    NSArray *urls = nil;
+    if (checkingURLOverlap) {
+        urls = [self URLsInText:text];
+    }
+    return [self cashtagsInText:text withURLEntities:urls];
+}
+
++ (NSArray*)cashtagsInText:(NSString*)text withURLEntities:(NSArray*)urlEntities
+{
+    if (!text.length) {
+        return [NSArray array];
+    }
+    
+    if (!validCashtagRegexp) {
+        validCashtagRegexp = [[CocoaRegex alloc] initWithPattern:TWUValidCashtag options:CocoaRegexCaseInsensitive];
+    }
+    
+    NSMutableArray *results = [NSMutableArray array];
+    NSInteger len = text.length;
+    NSInteger position = 0;
+    
+    while (1) {
+        CocoaRegex *validCashtagRegexpLocal = [validCashtagRegexp copy];
+        NSRange allRange = [validCashtagRegexpLocal rangeOfFirstMatchInString:text range:NSMakeRange(position, len - position) options:CocoaRegexMatchingWithoutAnchoringBounds];
+        if (allRange.location == NSNotFound || [validCashtagRegexpLocal numberOfMatchingRanges] < 1) {
+#if !__has_feature(objc_arc)
+            [validCashtagRegexpLocal release];
+#endif
+            break;
+        }
+        
+        NSRange cashtagRange = [validCashtagRegexpLocal matchingRangeAt:1];
+#if !__has_feature(objc_arc)
+        [validCashtagRegexpLocal release];
+#endif
+        BOOL matchOk = YES;
+        
+        // Check URL overlap
+        for (TwitterTextEntity *urlEntity in urlEntities) {
+            if (NSIntersectionRange(urlEntity.range, cashtagRange).length > 0) {
+                matchOk = NO;
+                break;
+            }
+        }
+        
+        if (matchOk) {
+            TwitterTextEntity *entity = [TwitterTextEntity entityWithType:TwitterTextEntityCashtag range:cashtagRange];
+            [results addObject:entity];
+        }
+        
+        position = NSMaxRange(allRange);
+    }
+    
+    return results;
+}
+
 + (NSArray*)mentionedScreenNamesInText:(NSString*)text
 {
     if (!text.length) {
@@ -658,45 +736,15 @@ static CocoaRegex *endMentionRegexp;
 
 + (int)tweetLength:(NSString*)text
 {
-    text = [text precomposedStringWithCanonicalMapping];
-    
-    int len = text.length;
-    if (!len) {
-        return 0;
-    }
-    
-    // Adjust count for non-BMP characters
-    UniChar buffer[len];
-    [text getCharacters:buffer range:NSMakeRange(0, len)];
-    int charCount = len;
-    
-    for (int i=0; i<len; i++) {
-        UniChar c = buffer[i];
-        if (CFStringIsSurrogateHighCharacter(c)) {
-            if (i+1 < len) {
-                UniChar d = buffer[i+1];
-                if (CFStringIsSurrogateLowCharacter(d)) {
-                    charCount--;
-                    i++;
-                }
-            }
-        }
-    }
-
-    return charCount;
+    return [self tweetLength:text httpURLLength:HTTPShortURLLength httpsURLLength:HTTPSShortURLLength];
 }
 
-+ (int)remainingCharacterCount:(NSString*)text
-{
-    return [self remainingCharacterCount:text httpURLLength:HTTPShortURLLength httpsURLLength:HTTPSShortURLLength];
-}
-
-+ (int)remainingCharacterCount:(NSString*)text httpURLLength:(int)httpURLLength httpsURLLength:(int)httpsURLLength
++ (int)tweetLength:(NSString*)text httpURLLength:(int)httpURLLength httpsURLLength:(int)httpsURLLength
 {
     text = [text precomposedStringWithCanonicalMapping];
     
     if (!text.length) {
-        return MaxTweetLength;
+        return 0;
     }
     
     // Remove URLs from text and add t.co length
@@ -711,7 +759,7 @@ static CocoaRegex *endMentionRegexp;
         TwitterTextEntity *entity = [urlEntities objectAtIndex:i];
         NSRange urlRange = entity.range;
         NSString *url = [string substringWithRange:urlRange];
-        if ([url rangeOfString:@"https" options:NSCaseInsensitiveSearch | NSAnchoredSearch].location == 0) {
+        if ([url rangeOfString:@"https" options:(NSCaseInsensitiveSearch | NSAnchoredSearch)].location == 0) {
             urlLengthOffset += httpsURLLength;
         } else {
             urlLengthOffset += httpURLLength;
@@ -740,8 +788,18 @@ static CocoaRegex *endMentionRegexp;
             }
         }
     }
+    
+    return charCount;
+}
 
-    return MaxTweetLength - charCount;
++ (int)remainingCharacterCount:(NSString*)text
+{
+    return [self remainingCharacterCount:text httpURLLength:HTTPShortURLLength httpsURLLength:HTTPSShortURLLength];
+}
+
++ (int)remainingCharacterCount:(NSString*)text httpURLLength:(int)httpURLLength httpsURLLength:(int)httpsURLLength
+{
+    return MaxTweetLength - [self tweetLength:text httpURLLength:httpURLLength httpsURLLength:httpsURLLength];
 }
 
 @end

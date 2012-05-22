@@ -18,11 +18,13 @@
 + (NSArray*)entitiesInText:(NSString*)text;
 + (NSArray*)URLsInText:(NSString*)text;
 + (NSArray*)hashtagsInText:(NSString*)text checkingURLOverlap:(BOOL)checkingURLOverlap;
++ (NSArray*)cashtagsInText:(NSString*)text checkingURLOverlap:(BOOL)checkingURLOverlap;
 + (NSArray*)mentionedScreenNamesInText:(NSString*)text;
 + (NSArray*)mentionsOrListsInText:(NSString*)text;
 + (TwitterTextEntity*)repliedScreenNameInText:(NSString*)text;
 
 + (int)tweetLength:(NSString*)text;
++ (int)tweetLength:(NSString*)text httpURLLength:(int)httpURLLength httpsURLLength:(int)httpsURLLength;
 
 + (int)remainingCharacterCount:(NSString*)text;
 + (int)remainingCharacterCount:(NSString*)text httpURLLength:(int)httpURLLength httpsURLLength:(int)httpsURLLength;

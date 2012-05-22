@@ -51,6 +51,8 @@
     NSArray *urlsWithIndices = [tests objectForKey:@"urls_with_indices"];
     NSArray *hashtags = [tests objectForKey:@"hashtags"];
     NSArray *hashtagsWithIndices = [tests objectForKey:@"hashtags_with_indices"];
+    NSArray *cashtags = [tests objectForKey:@"cashtags"];
+    NSArray *cashtagsWithIndices = [tests objectForKey:@"cashtags_with_indices"];
     
     //
     // Mentions
@@ -292,6 +294,94 @@
         } else {
             STFail(@"Matching count is different: %lu != %lu\n%@", expected.count, results.count, testCase);
         }
+    }
+    
+    //
+    // Cashtag
+    //
+    
+    for (NSDictionary *testCase in cashtags) {
+        NSString *text = [testCase objectForKey:@"text"];
+        NSArray *expected = [testCase objectForKey:@"expected"];
+        
+        NSArray *results = [TwitterText cashtagsInText:text checkingURLOverlap:YES];
+        if (results.count == expected.count) {
+            int count = results.count;
+            for (int i=0; i<count; i++) {
+                NSString *expectedText = [expected objectAtIndex:i];
+                
+                TwitterTextEntity *entity = [results objectAtIndex:i];
+                NSRange r = entity.range;
+                r.location++;
+                r.length--;
+                NSString *actualText = [text substringWithRange:r];
+                
+                STAssertEqualObjects(expectedText, actualText, @"%@", testCase);
+            }
+        } else {
+            STFail(@"Matching count is different: %lu != %lu\n%@", expected.count, results.count, testCase);
+            NSLog(@"### %@", results);
+        }
+    }
+    
+    //
+    // Cashtags with indices
+    //
+    for (NSDictionary *testCase in cashtagsWithIndices) {
+        NSString *text = [testCase objectForKey:@"text"];
+        NSArray *expected = [testCase objectForKey:@"expected"];
+        
+        NSArray *results = [TwitterText cashtagsInText:text checkingURLOverlap:YES];
+        if (results.count == expected.count) {
+            int count = results.count;
+            for (int i=0; i<count; i++) {
+                NSDictionary *expectedDic = [expected objectAtIndex:i];
+                NSString *expectedCashtag = [expectedDic objectForKey:@"cashtag"];
+                NSArray *expectedIndices = [expectedDic objectForKey:@"indices"];
+                int expectedStart = [[expectedIndices objectAtIndex:0] intValue];
+                int expectedEnd = [[expectedIndices objectAtIndex:1] intValue];
+                NSRange expectedRange = NSMakeRange(expectedStart, expectedEnd - expectedStart);
+                
+                TwitterTextEntity *entity = [results objectAtIndex:i];
+                NSRange actualRange = entity.range;
+                NSRange r = actualRange;
+                r.location++;
+                r.length--;
+                NSString *actualText = [text substringWithRange:r];
+                
+                STAssertEqualObjects(expectedCashtag, actualText, @"%@", testCase);
+                STAssertTrue(NSEqualRanges(expectedRange, actualRange), @"%@ != %@\n%@", NSStringFromRange(expectedRange), NSStringFromRange(actualRange), testCase);
+            }
+        } else {
+            STFail(@"Matching count is different: %lu != %lu\n%@", expected.count, results.count, testCase);
+        }
+    }
+}
+
+- (void)testValidate
+{
+    NSString *fileName = @"../test/json-conformance/validate.json";
+    NSData *data = [NSData dataWithContentsOfFile:fileName];
+    if (!data) {
+        NSString *error = [NSString stringWithFormat:@"No test data: %@", fileName];
+        STFail(error);
+        return;
+    }
+    NSDictionary *rootDic = [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL];
+    if (!rootDic) {
+        NSString *error = [NSString stringWithFormat:@"Invalid test data: %@", fileName];
+        STFail(error);
+        return;
+    }
+    
+    NSDictionary *tests = [rootDic objectForKey:@"tests"];
+    NSArray *lengths = [tests objectForKey:@"lengths"];
+    
+    for (NSDictionary *testCase in lengths) {
+        NSString *text = [testCase objectForKey:@"text"];
+        int expected = [[testCase objectForKey:@"expected"] intValue];
+        int len = [TwitterText tweetLength:text];
+        STAssertTrue(len == expected, @"Length should be %d (%d)", expected, len);
     }
 }
 
