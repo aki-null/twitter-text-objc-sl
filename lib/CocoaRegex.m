@@ -159,7 +159,7 @@ void uregex_useTransparentBounds(URegularExpression *regexp, UBool b, UErrorCode
     uregex_reset(regex, 0, &status);
     
     status = 0;
-    uregex_setText(regex, buf, string.length, &status);
+    uregex_setText(regex, buf, len, &status);
     
     status = 0;
     uregex_setRegion(regex, range.location, NSMaxRange(range), &status);

@@ -12,8 +12,13 @@ typedef enum {
 } CocoaRegexOptions;
 
 typedef enum {
+    // Specifies that matches are limited to those at the start of the search range.
     CocoaRegexMatchingAnchored                      = 1 << 1,
+    // Specifies that matching may examine parts of the string beyond the bounds of the search range, for purposes such as word
+    // boundary detection, lookahead, etc. This constant has no effect if the search range contains the entire string.
     CocoaRegexMatchingWithTransparentBounds         = 1 << 2,
+    // Specifies that ^ and $ will not automatically match the beginning and end of the search range, but will still match the
+    // beginning and end of the entire string. This constant has no effect if the search range contains the entire string.
     CocoaRegexMatchingWithoutAnchoringBounds        = 1 << 3,
 } CocoaRegexMatchingOptions;
 
