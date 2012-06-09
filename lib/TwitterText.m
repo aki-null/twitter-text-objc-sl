@@ -579,7 +579,7 @@ static CocoaRegex *endMentionRegexp;
     
     while (1) {
         CocoaRegex *validCashtagRegexpLocal = [validCashtagRegexp copy];
-        NSRange allRange = [validCashtagRegexpLocal rangeOfFirstMatchInString:text range:NSMakeRange(position, len - position) options:CocoaRegexMatchingWithoutAnchoringBounds];
+        NSRange allRange = [validCashtagRegexpLocal rangeOfFirstMatchInString:text options:CocoaRegexMatchingWithoutAnchoringBounds range:NSMakeRange(position, len - position)];
         if (allRange.location == NSNotFound || [validCashtagRegexpLocal numberOfMatchingRanges] < 1) {
 #if !__has_feature(objc_arc)
             [validCashtagRegexpLocal release];
